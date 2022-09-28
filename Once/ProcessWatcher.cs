@@ -9,34 +9,36 @@ namespace Once
 
         public Watcher(ManagementEventWatcher eventWatcher, EventArrivedEventHandler eventHandler)
         {
-            EventWatcher = eventWatcher;
-            EventHandler = eventHandler;
+            this.EventWatcher = eventWatcher;
+            this.EventHandler = eventHandler;
         }
     }
 
     public class ProcessWatcher
     {
-        static string PROCESS_STARTED_WQL = "SELECT * FROM Win32_ProcessStartTrace";
-        static string PROCESS_TERMINATED_WQL = "SELECT * FROM Win32_ProcessStopTrace";
+        private static string PROCESS_STARTED_WQL = "SELECT * FROM Win32_ProcessStartTrace";
+        private static string PROCESS_TERMINATED_WQL = "SELECT * FROM Win32_ProcessStopTrace";
 
-        private List<Watcher> mWatchers;
+        private List<Watcher> Watchers = new();
+        
+        public delegate void ProcessEventHandler(ProcessEventArgs ev);
+        public event ProcessEventHandler? ProcessEvent;
 
         public ProcessWatcher()
         {
-            mWatchers = new List<Watcher>();
-            mWatchers.Add(new Watcher(
+            this.Watchers.Add(new Watcher(
                 new ManagementEventWatcher(new WqlEventQuery(PROCESS_STARTED_WQL)),
-                this.OnProcessStarted
+                this.HandleProcessStarted
             ));
-            mWatchers.Add(new Watcher(
+            this.Watchers.Add(new Watcher(
                 new ManagementEventWatcher(new WqlEventQuery(PROCESS_TERMINATED_WQL)),
-                this.OnProcessTerminated
+                this.HandleProcessTerminated
             ));
         }
 
         public void Start()
         {
-            foreach (Watcher watcher in mWatchers)
+            foreach (Watcher watcher in this.Watchers)
             {
                 watcher.EventWatcher.Start();
                 watcher.EventWatcher.EventArrived += new EventArrivedEventHandler(watcher.EventHandler);
@@ -45,38 +47,41 @@ namespace Once
 
         public void Stop()
         {
-            foreach (Watcher watcher in mWatchers)
+            foreach (Watcher watcher in this.Watchers)
             {
                 watcher.EventWatcher.EventArrived -= new EventArrivedEventHandler(watcher.EventHandler);
                 watcher.EventWatcher.Stop();
             }
         }
 
-        public void OnProcessStarted(object sender, EventArrivedEventArgs eventArgs)
+        private void HandleProcessStarted(object sender, EventArrivedEventArgs eventArgs)
         {
-            ProcessEvent ev = new ProcessEvent();
-            ev.ProcessId = ExtractProcessId(eventArgs);
-            ev.ProcessName = ExtractProcessName(eventArgs);
-            ev.EventType = ProcessEventType.STARTED;
+            ProcessEventArgs ev = new ProcessEventArgs(
+                ExtractProcessId(eventArgs),
+                ExtractProcessName(eventArgs),
+                ProcessEventType.STARTED
+            );
             
-            Dispatch(ev);
+            this.Dispatch(ev);
         }
 
-        public void OnProcessTerminated(object sender, EventArrivedEventArgs eventArgs)
+        private void HandleProcessTerminated(object sender, EventArrivedEventArgs eventArgs)
         {
-            ProcessEvent ev = new ProcessEvent();
-            ev.ProcessId = ExtractProcessId(eventArgs);
-            ev.ProcessName = ExtractProcessName(eventArgs);
-            ev.EventType = ProcessEventType.TERMINATED;
+            ProcessEventArgs ev = new ProcessEventArgs(
+                ExtractProcessId(eventArgs),
+                ExtractProcessName(eventArgs),
+                ProcessEventType.TERMINATED
+            );
 
-            Dispatch(ev);
+            this.Dispatch(ev);
         }
 
-        public void Dispatch(ProcessEvent ev)
+        private void Dispatch(ProcessEventArgs ev)
         {
-            Console.WriteLine("{0}: {1} (ID: {2})", ev.EventType.ToString(), ev.ProcessName, ev.ProcessId);
+            Console.WriteLine("Event: {0}, {1} (ID: {2})", ev.EventType.ToString(), ev.ProcessName, ev.ProcessId);
 
-            // TODO dispatch event to trigger rules
+            ProcessEventHandler? handler = this.ProcessEvent;
+            handler?.Invoke(ev);
         }
 
         private int ExtractProcessId(EventArrivedEventArgs eventArgs)
@@ -84,7 +89,7 @@ namespace Once
             return Convert.ToInt32(eventArgs.NewEvent.Properties["ProcessID"].Value);
         }
 
-        private string? ExtractProcessName(EventArrivedEventArgs eventArgs)
+        private string ExtractProcessName(EventArrivedEventArgs eventArgs)
         {
             return Convert.ToString(eventArgs.NewEvent.Properties["ProcessName"].Value);
         }
