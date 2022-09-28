@@ -62,15 +62,15 @@ namespace Once
 
     public class Rule
     {
-        public string Name { get; set; } = "unnamed";
-        private List<RuleTrigger> Triggers = new();
-        private List<RuleAction> Actions = new();
+        public string Name { get; set; }
+        private List<RuleTrigger> Triggers { get; set; }
+        private List<RuleAction> Actions { get; set; }
 
-        public Rule(string name, List<RuleTrigger> triggers, List<RuleAction> actions)
+        public Rule(string? name = null, List<RuleTrigger>? triggers = null, List<RuleAction>? actions = null)
         {
-            this.Name = name;
-            this.Triggers = triggers;
-            this.Actions = actions;
+            this.Name = (name != null) ? name : "<unnamed rule>";
+            this.Triggers = (triggers != null) ? triggers : new();
+            this.Actions = (actions != null) ? actions : new();
         }
 
         /// <summary>
@@ -81,8 +81,6 @@ namespace Once
         /// <returns>True, if the rule was triggered</returns>
         public bool HandleEvent(ProcessEventArgs ev)
         {
-            Console.WriteLine("Handling Rule: {0}", this.Name);
-
             bool triggered = this.ShouldHandleEvent(ev);
 
             if(triggered)

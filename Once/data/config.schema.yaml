@@ -1,0 +1,91 @@
+type: object
+properties:
+  version:
+    $ref: /schemas/Version
+  rules:
+    type: array
+    items:
+      $ref: /schemas/Rule
+required:
+  - version
+  - rules
+$defs:
+  Version:
+    type: string
+  Rule:
+    type: object
+      properties:
+        name:
+          description: Optional name for the rule.
+          type: string
+        triggers:
+          description:
+            List of trigger conditions. Any of these conditions are matched, the rule is triggered, i.e.
+            all its actions are executed.
+          type: array
+          items:
+            $ref: /schemas/Trigger
+        actions:
+          description: List of actions to perform when the rule triggers.
+          type: array
+          items:
+            $ref: /schemas/Action
+      required:
+        - triggers
+        - actions
+  Trigger:
+    type: object
+    properties:
+      process_name:
+        description: This trigger is initiated only if the process' name matches this value.
+        type: string
+      process_event_type:
+        allOf:
+          - $ref: /schemas/EventType
+          - description: This trigger is initiated only if the event type matches this value.
+    required:
+      - process_name
+      - process_event_type
+  Action:
+    description: Describes an action to perform.
+    type: object
+    oneOf:
+      - $ref: /schemas/ExecuteAction
+  ActionBase:
+    properties:
+      type:
+        $ref: /schemas/ActionType
+      delay:
+        description: |
+          If defined, the action will be delayed with this many seconds. Default: 0.
+        type: number
+        minimum: 0
+    required:
+      - type
+  ExecuteAction:
+    description: An action type that executes a given command when triggered.
+    type: object
+    allOf:
+      - /schemas/ActionBase
+    properties:
+      command:
+        description: Command to execute.
+        type: string
+      cwd:
+        description: Directory to execute the command from.
+        type: string
+      close_on_exit:
+        description: |
+          If true, the triggered application will be closed when the original application exits. Default: true.
+        type: boolean
+    required:
+      - command
+  EventType:
+    type: string
+    enum:
+      - started
+      - terminated
+  ActionType:
+    type: string
+    enum:
+      - execute
