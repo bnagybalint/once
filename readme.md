@@ -1,3 +1,3 @@
-# ONCE - Start ONCE, Start ALL!
+:hammer: In progress
 
-Windows utility to set up rules for launching applications together.
+ONCE - Windows utility to set up rules for launching applications together.
